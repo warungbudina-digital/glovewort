@@ -1,10 +1,6 @@
 #!/usr/bin/env sh
-# phase-1 gateway healthcheck skeleton
-# intended responsibilities:
-# - verify gateway process liveness
-# - optionally verify bridge reachability
-
 set -eu
 
-echo "healthcheck skeleton"
-exit 0
+port=${OPENCLAW_GATEWAY_PORT:-18789}
+
+curl -fsS "http://127.0.0.1:${port}/healthz" >/dev/null
