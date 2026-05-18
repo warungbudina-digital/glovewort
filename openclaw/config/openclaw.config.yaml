@@ -1,6 +1,19 @@
-# glovewort phase-1 OpenClaw config skeleton
-# Baseline: OpenClaw 2026.4.2
-# Spec-first only; not yet validated for runtime.
+gateway:
+  bind: "${OPENCLAW_GATEWAY_BIND}"
+  port: ${OPENCLAW_GATEWAY_PORT}
+  auth:
+    mode: "token"
+    token: "${OPENCLAW_GATEWAY_TOKEN}"
+
+channels:
+  telegram:
+    enabled: true
+    botToken: "${TELEGRAM_BOT_TOKEN}"
+    dmPolicy: "pairing"
+    groupPolicy: "allowlist"
+    groups:
+      "*":
+        requireMention: true
 
 models:
   defaults:
@@ -9,10 +22,7 @@ models:
   providers:
     ollama-bridge:
       api: "openai-completions"
-      baseUrl: "http://llm-bridge-api:8000/v1"
+      baseUrl: "${BRIDGE_BASE_URL}"
       apiKey: "${BRIDGE_API_KEY}"
       models:
         "qwen2.5-coder:1.5b": {}
-
-# Telegram provider wiring and runtime-specific settings
-# will be finalized after config contract review.
