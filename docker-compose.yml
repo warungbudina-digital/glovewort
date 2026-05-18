@@ -1,11 +1,5 @@
-# glovewort phase-1 compose skeleton
-# Spec-first only. Not yet validated for build or runtime.
-
 services:
   ollama-brain:
-    # Purpose:
-    # - host the primary instruct model
-    # - provide internal inference only
     image: ollama/ollama:0.12.3
     container_name: ollama-brain
     restart: unless-stopped
@@ -17,20 +11,22 @@ services:
       - ${OLLAMA_DATA_VOLUME:-ollama_data}:/root/.ollama
     networks:
       - brain_hand_net
-    # Phase-1 note:
-    # - no docker.sock mount here
-    # - no public port exposure required by default
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
 
   llm-bridge-api:
-    # Purpose:
-    # - adapt OpenAI-compatible chat requests to Ollama
-    # - enforce API-key auth
     build:
-      context: ./deploy/ollama-fastapi/api
+      context: .
+      dockerfile: deploy/ollama-fastapi/api/Dockerfile
     container_name: llm-bridge-api
     restart: unless-stopped
     depends_on:
-      - ollama-brain
+      ollama-brain:
+        condition: service_healthy
     environment:
       OLLAMA_URL: http://ollama-brain:${OLLAMA_PORT:-11434}
       DEFAULT_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:1.5b}
@@ -38,32 +34,48 @@ services:
       BRIDGE_API_KEY: ${BRIDGE_API_KEY}
     networks:
       - brain_hand_net
-    # Phase-1 note:
-    # - internal-only by default
-    # - no docker.sock mount here
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8000/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   openclaw-gateway:
-    # Purpose:
-    # - Telegram ingress
-    # - OpenClaw 2026.4.2 runtime
-    # - action executor / hand layer
     build:
-      context: ./openclaw
+      context: .
+      dockerfile: openclaw/Dockerfile
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE}
     container_name: openclaw-gateway
     restart: unless-stopped
     depends_on:
-      - llm-bridge-api
+      llm-bridge-api:
+        condition: service_healthy
     environment:
+      HOME: /home/node
+      TERM: xterm-256color
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_MODE: ${TELEGRAM_BOT_MODE:-polling}
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
-      OPENCLAW_CONFIG_PATH: ${OPENCLAW_CONFIG_PATH:-/app/openclaw/config/openclaw.config.yaml}
+      OPENCLAW_CONFIG_PATH: ${OPENCLAW_CONFIG_PATH:-/home/node/.openclaw/openclaw.config.yaml}
+      OPENCLAW_GATEWAY_BIND: ${OPENCLAW_GATEWAY_BIND:-lan}
+      OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT:-18789}
+      BRIDGE_API_KEY: ${BRIDGE_API_KEY}
+      BRIDGE_BASE_URL: ${BRIDGE_BASE_URL:-http://llm-bridge-api:8000/v1}
     volumes:
+      - ./openclaw/config/openclaw.config.yaml:/home/node/.openclaw/openclaw.config.yaml:ro
+      - ./logs:/tmp/openclaw
+      - ./state:/home/node/.openclaw/state
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - brain_hand_net
-    # Phase-1 note:
-    # - docker.sock exists only here
-    # - no browser runtime planned
+    healthcheck:
+      test: ["CMD-SHELL", "/app/openclaw/scripts/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
 networks:
   brain_hand_net:
