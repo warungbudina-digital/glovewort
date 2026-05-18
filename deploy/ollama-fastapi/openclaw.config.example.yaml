@@ -1,0 +1,11 @@
+models:
+  defaults:
+    model:
+      primary: "ollama-bridge/qwen2.5-coder:1.5b"
+  providers:
+    ollama-bridge:
+      api: "openai-completions"
+      baseUrl: "http://llm-bridge-api:8000/v1"
+      apiKey: "<BRIDGE_API_KEY>"
+      models:
+        "qwen2.5-coder:1.5b": {}
