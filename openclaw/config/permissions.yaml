@@ -1,0 +1,14 @@
+# phase-1 permissions skeleton
+# trust model:
+# - Telegram input is untrusted
+# - model output is advisory
+# - Docker socket access is privileged
+
+execution:
+  docker_socket:
+    mounted_on: openclaw-gateway
+    policy: restricted
+  local_actions:
+    policy: explicit-allowlist
+  destructive_actions:
+    policy: deny-by-default
