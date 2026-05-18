@@ -1,0 +1,3 @@
+# phase-1 Modelfile skeleton
+# placeholder for the chosen instruct-model baseline if a custom Modelfile is needed.
+# if not needed, the deployment may rely on explicit `ollama pull` only.
