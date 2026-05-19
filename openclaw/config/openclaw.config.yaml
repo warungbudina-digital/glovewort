@@ -1,28 +1,50 @@
-gateway:
-  bind: "${OPENCLAW_GATEWAY_BIND}"
-  port: ${OPENCLAW_GATEWAY_PORT}
-  auth:
-    mode: "token"
-    token: "${OPENCLAW_GATEWAY_TOKEN}"
+{
+  gateway: {
+    mode: "local",
+    bind: "lan",
+    port: 18789,
+    auth: {
+      mode: "token",
+      token: "${OPENCLAW_GATEWAY_TOKEN}",
+    },
+  },
 
-channels:
-  telegram:
-    enabled: true
-    botToken: "${TELEGRAM_BOT_TOKEN}"
-    dmPolicy: "pairing"
-    groupPolicy: "allowlist"
-    groups:
-      "*":
-        requireMention: true
+  channels: {
+    telegram: {
+      enabled: true,
+      botToken: "${TELEGRAM_BOT_TOKEN}",
+      dmPolicy: "pairing",
+      groupPolicy: "allowlist",
+      groups: {
+        "*": {
+          requireMention: true,
+        },
+      },
+    },
+  },
 
-models:
-  defaults:
-    model:
-      primary: "ollama-bridge/qwen2.5-coder:1.5b"
-  providers:
-    ollama-bridge:
-      api: "openai-completions"
-      baseUrl: "${BRIDGE_BASE_URL}"
-      apiKey: "${BRIDGE_API_KEY}"
-      models:
-        "qwen2.5-coder:1.5b": {}
+  agents: {
+    defaults: {
+      model: {
+        primary: "ollama-bridge/qwen2.5-coder:1.5b",
+      },
+    },
+  },
+
+  models: {
+    mode: "merge",
+    providers: {
+      "ollama-bridge": {
+        api: "openai-completions",
+        baseUrl: "${BRIDGE_BASE_URL}",
+        apiKey: "${BRIDGE_API_KEY}",
+        models: [
+          {
+            id: "qwen2.5-coder:1.5b",
+            name: "Qwen 2.5 Coder 1.5B",
+          },
+        ],
+      },
+    },
+  },
+}
