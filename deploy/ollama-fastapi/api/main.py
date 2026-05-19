@@ -94,31 +94,32 @@ async def chat_completions(
         },
     }
 
-    async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
-        if not payload.stream:
+    if not payload.stream:
+        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
             response = await client.post(f"{OLLAMA_URL}/api/chat", json=ollama_body)
-            if response.status_code >= 400:
-                raise HTTPException(status_code=response.status_code, detail=response.text)
+        if response.status_code >= 400:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
 
-            data = response.json()
-            text = (data.get("message") or {}).get("content", "")
-            return JSONResponse(
-                {
-                    "id": request_id,
-                    "object": "chat.completion",
-                    "created": int(time.time()),
-                    "model": model,
-                    "choices": [
-                        {
-                            "index": 0,
-                            "message": {"role": "assistant", "content": text},
-                            "finish_reason": "stop",
-                        }
-                    ],
-                }
-            )
+        data = response.json()
+        text = (data.get("message") or {}).get("content", "")
+        return JSONResponse(
+            {
+                "id": request_id,
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": model,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": text},
+                        "finish_reason": "stop",
+                    }
+                ],
+            }
+        )
 
-        async def stream_events() -> Any:
+    async def stream_events() -> Any:
+        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
             async with client.stream("POST", f"{OLLAMA_URL}/api/chat", json=ollama_body) as resp:
                 if resp.status_code >= 400:
                     detail = await resp.aread()
@@ -145,4 +146,4 @@ async def chat_completions(
                         yield "data: [DONE]\n\n"
                         return
 
-        return StreamingResponse(stream_events(), media_type="text/event-stream")
+    return StreamingResponse(stream_events(), media_type="text/event-stream")
