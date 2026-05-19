@@ -53,16 +53,54 @@ async def healthz() -> JSONResponse:
 
 
 def _to_ollama_messages(messages: list[ChatMessage]) -> list[dict[str, str]]:
+    def normalize_content(content: str | list[Any] | None) -> str:
+        if isinstance(content, str):
+            return content
+        if content is None:
+            return ""
+
+        if isinstance(content, list):
+            parts: list[str] = []
+            for item in content:
+                if isinstance(item, dict):
+                    item_type = item.get("type")
+                    if item_type in {"text", "input_text", "output_text"}:
+                        text = item.get("text")
+                        if isinstance(text, str):
+                            parts.append(text)
+                    elif isinstance(item.get("content"), str):
+                        parts.append(item["content"])
+                elif isinstance(item, str):
+                    parts.append(item)
+            if parts:
+                return "\n".join(parts)
+
+        return json.dumps(content, ensure_ascii=False)
+
     converted: list[dict[str, str]] = []
     for msg in messages:
-        if isinstance(msg.content, str):
-            content = msg.content
-        elif msg.content is None:
-            content = ""
-        else:
-            content = json.dumps(msg.content)
-        converted.append({"role": msg.role, "content": content})
+        role = "system" if msg.role == "developer" else msg.role
+        converted.append({"role": role, "content": normalize_content(msg.content)})
     return converted
+
+
+def _trim_messages_for_small_model(messages: list[ChatMessage]) -> list[ChatMessage]:
+    system_messages: list[ChatMessage] = []
+    latest_user: ChatMessage | None = None
+
+    for msg in messages:
+        if msg.role in {"system", "developer"}:
+            system_messages.append(msg)
+        elif msg.role == "user":
+            latest_user = msg
+
+    trimmed: list[ChatMessage] = []
+    if system_messages:
+        trimmed.append(system_messages[-1])
+    if latest_user is not None:
+        trimmed.append(latest_user)
+
+    return trimmed if trimmed else messages[-1:]
 
 
 def _openai_chunk(content: str, model: str, request_id: str) -> dict[str, Any]:
@@ -84,9 +122,10 @@ async def chat_completions(
 
     model = payload.model or DEFAULT_MODEL
     request_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
+    trimmed_messages = _trim_messages_for_small_model(payload.messages)
     ollama_body = {
         "model": model,
-        "messages": _to_ollama_messages(payload.messages),
+        "messages": _to_ollama_messages(trimmed_messages),
         "stream": payload.stream,
         "options": {
             **({"temperature": payload.temperature} if payload.temperature is not None else {}),
