@@ -20,8 +20,8 @@ services:
 
   llm-bridge-api:
     build:
-      context: .
-      dockerfile: deploy/ollama-fastapi/api/Dockerfile
+      context: ./deploy/ollama-fastapi/api
+      dockerfile: Dockerfile
     container_name: llm-bridge-api
     restart: unless-stopped
     depends_on:
